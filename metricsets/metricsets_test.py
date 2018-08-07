@@ -20,7 +20,6 @@ class TestSupervisedDHM(unittest.TestCase):
     def test_normalize_Y(self):
         ms = self.metricset_factory()
         ms.normalize_Y()
-        print(ms.Y)
         self.assertTrue(ms.Y.max() <= 1)
         self.assertTrue(ms.Y.min() >= 0)
 
