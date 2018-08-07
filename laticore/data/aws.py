@@ -4,12 +4,13 @@ import numpy as np
 from collections import OrderedDict
 from datetime import datetime, timedelta
 
-from data.data import Data
+from laticore.data.data import Data
 
 class CloudWatch(Data):
     def __init__(self, boto_session):
         super().__init__()
-        self.cloudwatch = self.session.client("cloudwatch")
+        self.boto_session = boto_session
+        self.cloudwatch = self.boto_session.client("cloudwatch")
 
     def _get_date_ranges(self, start_time:datetime, end_time:datetime):
         """
@@ -18,6 +19,13 @@ class CloudWatch(Data):
         more than 1440 minutes.
         Thus, date_ranges is a list of (start,finish) tuples to be utlized in our
         requests to cloudwatch
+
+        Args:
+            start_time(datetime, required): Beginning of the metric window to request
+            end_time(datetime, required): Ending of the metric window to request
+
+        Returns:
+            date_ranges(list(tuple(datetime,datetime))): list of tuples containing (start_time, end_time)
         """
         date_ranges = []
         metric_request_delta = end_time - start_time
@@ -37,6 +45,18 @@ class CloudWatch(Data):
         """
         fetches the target_metric from cloudwatch in batches of <= 1440 minutes.
         Sets target_metric instance attr.
+
+        Args:
+            start_time (datetime, required): beginning of metric request window
+            end_time (datetime, required): ending of metric request window
+            namespace (str, required): CloudWatch namespace to request from
+            metric_name (str, required): Cloudwatch metric to request
+            dimensions (list(dict), required): dimensions to get the right targets
+            statistic (str, required): the statistic to request (i.e. Sum, Average, etc.)
+
+        Returns:
+            X (2d numpy array): 2d array of unix timestamps
+            Y (2d numpy array): 2d array of the target metric
         """
         # create empty X and Y arrays that we can append to as data comes in from
         # AWS
@@ -76,3 +96,85 @@ class CloudWatch(Data):
             Y = np.append(Y, y, axis=0)
 
         return X, Y
+
+class AutoscalingLockedException(Exception):
+    pass
+
+
+class Autoscaling(Data):
+    """
+    Fetches data for AWS Autoscaling Groups
+    """
+
+    def __init__(self, asg_name:str, boto_session:boto3.Session):
+        """
+            Args:
+                asg_name(str, required): Name of the autosclaing group
+                boto_session(boto3.Session, required): Customer boto session with assumed role
+        """
+        self.asg_name = asg_name
+        self.boto_session = boto_session
+        self.autoscaling = boto_session.client("autoscaling")
+
+    def fetch_config(self) -> dict:
+        """
+        fetches autoscaling group config from aws
+
+        Returns:
+            config(dict):
+                min_size
+                max_size
+                default_cooldown
+                desired_capacity
+                instance_count
+        """
+        response = self.autoscaling.describe_autoscaling_groups(
+            AutoScalingGroupNames = [
+                self.asg_name,
+            ],
+        )
+
+        asg_config_raw = response["AutoScalingGroup"][0]
+
+        self.config = {
+                    "min_size": asg_config_raw["MinSize"],
+                    "max_size": asg_config_raw["MaxSize"],
+                    "default_cooldown": asg_config_raw["DefaultCooldown"],
+                    "desired_capacity": asg_config_raw["DesiredCapacity"],
+                    "instance_count": len(asg_config_raw['Instances']),
+                }
+
+        return self.config
+
+    def locked(self) -> bool:
+        """
+        checks scaling activies of the autoscaling group and reports if the asg
+        is busy or not.
+
+        Returns:
+            locked(bool): True if asg is locked
+        """
+        response = self.autoscaling.describe_scaling_activities(
+            AutoScalingGroupName = self.asg_name,
+            MaxRecords = 10,
+        )
+
+        # these are the busy codes that might be reported by autoscaling
+        busy_codes = [
+            "PendingSpotBidPlacement",
+            "WaitingForSpotInstanceRequestId",
+            "WaitingForSpotInstanceId",
+            "WaitingForInstanceId",
+            "PreInService",
+            "InProgress",
+            "WaitingForELBConnectionDraining",
+            "MidLifecycleAction",
+            "WaitingForInstanceWarmup",
+        ]
+
+        # check if there's a busy signal listed in activities
+        for activity in response["Activities"]:
+            if activity["StatusCode"] in busy_codes:
+                return True
+
+        return False
