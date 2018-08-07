@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from datetime import datetime
 
-from metricsets.metricset import *
+from laticore.metricsets.metricsets import *
 
 class TestSupervisedDHM(unittest.TestCase):
     def setUp(self):
