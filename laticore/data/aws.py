@@ -8,7 +8,6 @@ from laticore.data.data import Data
 
 class CloudWatch(Data):
     def __init__(self, boto_session):
-        super().__init__()
         self.boto_session = boto_session
         self.cloudwatch = self.boto_session.client("cloudwatch")
 
