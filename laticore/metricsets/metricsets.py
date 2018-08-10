@@ -4,9 +4,17 @@ from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime
 
 class DimensionError(Exception):
+    """
+    Error raised when the dimensions of a numpy array do not match the
+    required dimensions.
+    """
     pass
 
 class TransformError(Exception):
+    """
+    Error raised when attempting to perform an irreversible metricset
+    transformation that has already taken place.
+    """
     pass
 
 class MetricSet(object):
@@ -77,7 +85,7 @@ class MetricSet(object):
     def min_Y(self):
         return self.Y_orig.min()
 
-class TimeSeries(MetricSet):
+class TimeSeriesMetricSet(MetricSet):
     """
     MetricSet that takes X and Y 2d arrays, where X is an array
     of Unix timestamps
@@ -102,7 +110,7 @@ class TimeSeries(MetricSet):
         """
         return datetime.utcfromtimestamp(self.X_orig[-1][0])
 
-class SupervisedDHM(TimeSeries):
+class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
     def __init__(self, X:np.ndarray, Y:np.ndarray, lookback:int = 20,
         Y_norm_buffer:float = 1.0, Y_norm_coefficient:float = None):
         self.X = np.copy(X)
@@ -253,6 +261,11 @@ class SupervisedDHM(TimeSeries):
         self._transformed_to_supervised = True
 
     def full_transform(self):
+        """
+        Convenience method that calls all the methods required to perform a
+        complete transformation on a metricset to be used as supervised learning
+        inputs to a neural network.
+        """
         if self._transformed_to_supervised:
             raise TransformError("Metricset has already been transformed to a supervsied set.")
 

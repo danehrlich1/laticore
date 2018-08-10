@@ -7,6 +7,10 @@ from datetime import datetime, timedelta
 from laticore.data.data import Data
 
 class CloudWatch(Data):
+    """
+    Implements methods for retrieving large quantities of data from AWS Cloudwatch
+    with minute resolution.
+    """
     def __init__(self, boto_session):
         self.boto_session = boto_session
         self.cloudwatch = self.boto_session.client("cloudwatch")
@@ -44,6 +48,7 @@ class CloudWatch(Data):
         """
         fetches the target_metric from cloudwatch in batches of <= 1440 minutes.
         Sets target_metric instance attr.
+        Data is requested with minute resolution.
 
         Args:
             start_time (datetime, required): beginning of metric request window

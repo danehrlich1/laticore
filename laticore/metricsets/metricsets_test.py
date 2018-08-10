@@ -5,7 +5,7 @@ from datetime import datetime
 
 from laticore.metricsets.metricsets import *
 
-class TestSupervisedDHM(unittest.TestCase):
+class TestSupervisedTimeSeriesMetricSet(unittest.TestCase):
     def setUp(self):
         pass
 
@@ -15,7 +15,7 @@ class TestSupervisedDHM(unittest.TestCase):
 
         X = np.arange(now, later, 60).reshape((timesteps, 1))
         Y = np.random.randint(3000, 7000, (timesteps, 1)).astype(float)
-        return SupervisedDHM(X=X, Y=Y)
+        return SupervisedTimeSeriesMetricSet(X=X, Y=Y)
 
     def test_normalize_Y(self):
         ms = self.metricset_factory()
