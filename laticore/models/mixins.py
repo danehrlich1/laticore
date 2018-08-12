@@ -1,15 +1,17 @@
 import os
+import bson
+import h5py
 import redis
 import pymongo
 import tensorflow as tf
 from datetime import datetime, timedelta
+from keras.models import load_model
 
 class ModelLockMixin(object):
     """
     Helper class that handles locking/unlocking of models for safe writes
     """
-    def __init__(self, redis_session: redis.Redis, task_id:str, tenant:str,
-        lock_expiration_minutes:int, lock_wait_timeout_seconds:int):
+    def __init__(self):
         """
         Args:
             redis_session (redis.Redis, required): redis session
@@ -26,16 +28,6 @@ class ModelLockMixin(object):
         # whether this instance actually owns the lock for the model
         self.locked = False
 
-        self.redis = redis_session
-
-        self.task_id = task_id
-
-        self.tenant = tenant
-
-        self.lock_expiration_minutes = lock_expiration_minutes
-
-        self.lock_wait_timeout_seconds = lock_wait_timeout_seconds
-
     @property
     def locked(self) -> bool:
         return self._locked
@@ -47,35 +39,43 @@ class ModelLockMixin(object):
         self._locked = val
 
     @property
-    def task_id(self):
-        return self._task_id
-
-    @task_id.setter
-    def task_id(self, val):
-        if not isinstance(val, str):
-            raise TypeError("task id must be of type str")
-        self.task_id = val
-
-    @property
     def lock_key(self) -> str:
-        return "%s-%s" % (self.tenant, self.task_id)
+        return self._lock_key
 
-    @property
-    def locked(self) -> bool:
-        return self._locked
+    @lock_key.setter
+    def lock_key(self, val):
+        if not isinstance(val, str):
+            raise TypeError("lock_key must be of type str")
+        self._lock_key = val
 
-    def lock(self) -> bool:
+    def fmt_lock_key(self, tenant:str, task_id:str) -> str:
+        """
+        Combines tenant and task_id into a single string to be used as a lock key
+
+        Args:
+            tenant (str, required)
+            task_id (str, required)
+
+        Returns:
+            lock_key (str)
+        """
+        return "%s-%s" % (tenant, task_id)
+
+    def lock(self, redis_session: redis.Redis, task_id:str, tenant:str,
+        lock_expiration_seconds:int, lock_wait_timeout_seconds:int, sleep_seconds:float = .1) -> bool:
         """
         Checks for the existence of a lock and creates one if possible,
         thereby setting self._locked to True
         """
-        self._redis_lock = self.redis.lock(
+        self.lock_key = self.fmt_lock_key(tenant, task_id)
+
+        self._redis_lock = redis_session.lock(
             self.lock_key,
-            timeout = self.lock_expiration_minutes * 60,
-            sleep = .1,
-            blocking_timeout = self.lock_wait_timeout_seconds,
+            timeout             = lock_expiration_seconds,
+            sleep               = sleep_seconds,
+            blocking_timeout    = lock_wait_timeout_seconds,
         )
-        self.locked = self.lock.acquire()
+        self.locked = self._redis_lock.acquire()
 
         return self.locked
 
@@ -91,6 +91,12 @@ class ModelLockMixin(object):
             raise e
         else:
             self.locked = False
+
+class NullModelError(Exception):
+    pass
+
+class ModelNotFound(Exception):
+    pass
 
 class ModelStorageMixin(object):
     """
@@ -127,23 +133,31 @@ class ModelStorageMixin(object):
     def model_path(self):
         return os.path.join(self.local_model_storage, self.task_id + ".h5")
 
+    def exists_in_db(self) -> bool:
+        """
+        Checks whether model exists in storage
 
-    def fetch_and_set(self):
+        Returns:
+            bool
+        """
+        return self.mongo[self.tenant][self.collection].count({"task_id": bson.ObjectId(self.task_id)}) > 0
+
+    def fetch_and_set_from_db(self):
         """
         Fetches model from storage and sets as instance attribute self._model
         """
-        self.model_doc = mongo[tenant][collection].find_one({"task_id": task_id})
+        self.model_doc = self.mongo[self.tenant][self.collection].find_one({"task_id": bson.ObjectId(self.task_id)})
 
         if self.model_doc is None:
             raise ModelNotFound("Model not found in storage.")
 
         # write to file
-        with open(self.model_path 'wb') as f:
+        with open(self.model_path, 'wb') as f:
             f.write(self.model_doc["model"])
 
         # load model from file
         with tf.name_scope(self.tf_name_scope):
-            self._model = load_model(self._model_path)
+            self._model = load_model(self.model_path)
             self._model._make_predict_function()
 
     def save_new(self, earliest_metric_time:datetime):
@@ -167,10 +181,12 @@ class ModelStorageMixin(object):
                     raw_result
                     upserted_id
         """
+        if not self._model:
+            raise NullModelError("self._model must be set in order to save it.")
         # save model to .h5 file locally
         self._model.save(self.model_path)
 
-        with open(self.model_path 'rb') as f:
+        with open(self.model_path, 'rb') as f:
             data = f.read()
 
         # since model is being newly saved we need to include the earliest_metric_time
@@ -208,7 +224,7 @@ class ModelStorageMixin(object):
         # save model to .h5 file locally
         self._model.save(self.model_path)
 
-        with open(self.model_path 'rb') as f:
+        with open(self.model_path, 'rb') as f:
             data = f.read()
 
         update_doc = {
