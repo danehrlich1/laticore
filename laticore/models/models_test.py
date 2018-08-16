@@ -3,12 +3,13 @@ import numpy as np
 import warnings
 from datetime import datetime
 
+from keras.models import Model as KModel
 from keras.models import Sequential
 from keras.models import Model as KerasModel
 from keras.layers import Dense
 from keras import layers
 
-from laticore.models.models import TimeSeriesNNModel
+from laticore.models.models import TimeSeriesNNModel, TimeSeriesLSTMModel
 from laticore.metricsets.metricsets import SupervisedTimeSeriesMetricSet
 
 class TestTimeSeriesNNModel(unittest.TestCase):
@@ -77,3 +78,24 @@ class TestTimeSeriesNNModel(unittest.TestCase):
         predictions = self.model.predict(metricset=ms_predict, lookahead=10)
 
         self.assertTrue(isinstance(predictions, np.ndarray))
+
+class TestTimeSeriesLSTMModel(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        warnings.simplefilter("ignore")
+
+    def test_new_model(self):
+        model = TimeSeriesLSTMModel()
+
+        model.create_and_set_new_model(
+            input_nodes     = 50,
+            input_shape     = (20, 4),
+            activation      = "linear",
+            dense_nodes     = 1,
+            loss_function   = "binary_crossentropy",
+            optimizer       = "adam",
+        )
+
+        self.assertTrue(model._model is not None)
+        self.assertTrue(isinstance(model._model, KModel))

@@ -4,7 +4,13 @@ import pymongo
 import numpy as np
 from datetime import datetime, timedelta
 from abc import ABCMeta, abstractmethod
+
 from keras.models import Model as KModel
+from keras.models import Sequential
+from keras.models import Model as KerasModel
+from keras.layers import Dense
+from keras import layers
+
 from laticore.metricsets.metricsets import SupervisedTimeSeriesMetricSet
 
 class ModelConfig(object):
@@ -23,7 +29,7 @@ class TimeSeriesNNModel(Model):
     learning problem.
     """
     @abstractmethod
-    def create(self) -> KModel:
+    def create_and_set_new_model(self, *args, **kwargs):
         """
         Abstract method that must be implemented by child class to create a new
         Keras.models.Model instance
@@ -149,3 +155,46 @@ class TimeSeriesNNModel(Model):
             p += 1
 
         return predictions / metricset.Y_norm_coefficient
+
+class TimeSeriesLSTMModel(TimeSeriesNNModel):
+
+    def create_and_set_new_model(self, input_nodes:int, input_shape:tuple, activation:str,
+        dense_nodes:int, loss_function:str, optimizer:str):
+        """
+        Creates a new instance of a Keras Model and sets as instance attribute _model
+
+        Args:
+            input_nodes (required, int): Number of input nodes for LSTM input layer
+
+            input_shape (required, tuple): Input shape as tuple of (timesteps, features)
+
+            activation (required, str): Activation function to be used
+
+            dense_nodes (required, int): Number of dense nodes in hidden layer
+
+            loss_function (required str): Loss function to be used for training
+
+            optimizer (required, str): Optimzier to be used for compiling the model
+        """
+        # create the LSTM network
+        nn = Sequential()
+
+        # Add LSTM input layer
+        nn.add(layers.LSTM(
+            input_nodes,
+            input_shape = input_shape,
+            activation = activation,
+        ))
+
+        # Add Dense Hidden Layer
+        nn.add(Dense(
+            units = dense_nodes,
+        ))
+
+        # Compile the model
+        nn.compile(
+            loss = loss_function,
+            optimizer = optimizer,
+        )
+
+        self._model = nn
