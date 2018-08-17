@@ -16,9 +16,6 @@ from laticore.metricsets.metricsets import SupervisedTimeSeriesMetricSet
 class ModelConfig(object):
     pass
 
-class ModelNotFound(Exception):
-    pass
-
 class Model(object):
     pass
 

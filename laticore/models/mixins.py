@@ -7,6 +7,8 @@ import tensorflow as tf
 from datetime import datetime, timedelta
 from keras.models import load_model
 
+from laticore.models.exceptions import NullModelException, ModelNotFoundException
+
 class ModelLockMixin(object):
     """
     Helper class that handles locking/unlocking of models for safe writes
@@ -92,12 +94,6 @@ class ModelLockMixin(object):
         else:
             self.locked = False
 
-class NullModelError(Exception):
-    pass
-
-class ModelNotFound(Exception):
-    pass
-
 class ModelStorageMixin(object):
     """
     Helper class that handles fetching and storage of models from mongodb
@@ -149,7 +145,7 @@ class ModelStorageMixin(object):
         self.model_doc = self.mongo[self.tenant][self.collection].find_one({"task_id": bson.ObjectId(self.task_id)})
 
         if self.model_doc is None:
-            raise ModelNotFound("Model not found in storage.")
+            raise ModelNotFoundException("Model not found in storage.")
 
         # write to file
         with open(self.model_path, 'wb') as f:
@@ -182,7 +178,7 @@ class ModelStorageMixin(object):
                     upserted_id
         """
         if not self._model:
-            raise NullModelError("self._model must be set in order to save it.")
+            raise NullModelException("self._model must be set in order to save it.")
         # save model to .h5 file locally
         self._model.save(self.model_path)
 
