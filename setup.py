@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='laticore',
-    version='0.0.0',
+    version='0.1.0',
     packages=['laticore',],
     package_data = {},
     include_package_data=True,    # include everything in source control
