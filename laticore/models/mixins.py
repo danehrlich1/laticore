@@ -14,16 +14,6 @@ class ModelLockMixin(object):
     Helper class that handles locking/unlocking of models for safe writes
     """
     def __init__(self):
-        """
-        Args:
-            redis_session (redis.Redis, required): redis session
-            task_id (str, required): task id string
-            tenant (str, required): name of tenant
-            lock_expiration_minutes (int, required): how many minutes until the
-                lock automatically expires
-            lock_wait_timeout_seconds (int, required): how many seconds to wait to
-                acquire the lock if it's owned by somebody else
-        """
         # instance of redis.Lock
         self._redis_lock = None
 
@@ -68,6 +58,22 @@ class ModelLockMixin(object):
         """
         Checks for the existence of a lock and creates one if possible,
         thereby setting self._locked to True
+
+        Args:
+            redis_session (redis.Redis, required): redis session
+
+            task_id (str, required): task id string
+
+            tenant (str, required): name of tenant
+
+            lock_expiration_seconds (int, required): how many seconds until the
+                lock automatically expires
+
+            lock_wait_timeout_seconds (int, required): how many seconds to wait to
+                acquire the lock if it's owned by somebody else
+
+            sleep_seconds (float, optional): number of seconds to sleep between attempts
+                to acquire the lock
         """
         self.lock_key = self.fmt_lock_key(tenant, task_id)
 
