@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(
-    name='latitcore',
+    name='laticore',
     version='0.0.0',
     packages=['laticore',],
     package_data = {},
