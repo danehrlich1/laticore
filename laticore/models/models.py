@@ -13,11 +13,11 @@ from keras import layers
 
 from laticore.metricsets.metricsets import SupervisedTimeSeriesMetricSet
 
-class ModelConfig(object):
-    pass
-
 class Model(object):
-    pass
+    """
+    Abstract Model Class
+    """
+    __metaclass__ = ABCMeta
 
 
 class TimeSeriesNNModel(Model):

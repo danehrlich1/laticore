@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 from datetime import datetime, timedelta
 
-from laticore.data.aws import *
+from laticore.data.aws.aws import *
 
 class TestCloudWatch(unittest.TestCase):
     now = datetime.now()

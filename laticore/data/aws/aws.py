@@ -5,6 +5,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from laticore.data.data import Data
+from laticore.data.aws.exceptions import AutoscalingLockedException
 
 class CloudWatch(Data):
     """
@@ -100,9 +101,6 @@ class CloudWatch(Data):
             Y = np.append(Y, y, axis=0)
 
         return X, Y
-
-class AutoscalingLockedException(Exception):
-    pass
 
 
 class Autoscaling(Data):

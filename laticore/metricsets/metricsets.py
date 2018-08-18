@@ -1,23 +1,14 @@
 import math
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime
+from sklearn.preprocessing import MinMaxScaler
 
-class DimensionError(Exception):
-    """
-    Error raised when the dimensions of a numpy array do not match the
-    required dimensions.
-    """
-    pass
-
-class TransformError(Exception):
-    """
-    Error raised when attempting to perform an irreversible metricset
-    transformation that has already taken place.
-    """
-    pass
+from laticore.metricsets.exceptions import DimensionError, TransformError
 
 class MetricSet(object):
+    """
+    MetricSet is the base class that holds an X and Y arrays
+    """
 
     def __init__(self, X:np.ndarray, Y:np.ndarray):
         self.X = np.copy(X)
