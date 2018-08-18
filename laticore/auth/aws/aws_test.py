@@ -1,7 +1,7 @@
 import boto3
 import unittest
 import warnings
-from laticore.auth.aws import *
+from laticore.auth.aws.aws import *
 
 class TestAssumedRole(unittest.TestCase):
 
