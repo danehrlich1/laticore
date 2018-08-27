@@ -1,1 +1,1 @@
-from laticore.metricsets import metricsets
+from laticore.metricsets.metricsets import *

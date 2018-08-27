@@ -11,7 +11,7 @@ from keras.models import Model as KerasModel
 from keras.layers import Dense
 from keras import layers
 
-from laticore.metricsets.metricsets import SupervisedTimeSeriesMetricSet
+from laticore.metricsets import SupervisedTimeSeriesMetricSet
 
 class Model(object):
     """
