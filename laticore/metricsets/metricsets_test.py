@@ -22,6 +22,8 @@ class TestSupervisedTimeSeriesMetricSet(unittest.TestCase):
         ms.normalize_Y()
         self.assertTrue(ms.Y.max() <= 1)
         self.assertTrue(ms.Y.min() >= 0)
+        self.assertTrue(ms.max_normalized_target_metric_value <= 1)
+        self.assertTrue(ms.min_normalized_target_metric_value >= 0)
 
     def test_decompose_X(self):
         ms = self.metricset_factory()

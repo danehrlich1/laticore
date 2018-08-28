@@ -81,11 +81,19 @@ class TimeSeriesMetricSet(MetricSet):
     MetricSet that takes X and Y 2d arrays, where X is an array
     of Unix timestamps
     """
-    def __init__(self, X:np.ndarray, Y:np.ndarray):
+    def __init__(self, X:np.ndarray, Y:np.ndarray, Y_norm_buffer:float = 1.0,
+        Y_norm_coefficient:float = None):
         self.X = np.copy(X)
         self.Y = np.copy(Y)
         self.X_orig = np.copy(X)
         self.Y_orig = np.copy(Y)
+
+        self._set_scalers()
+        self.Y_norm_buffer = Y_norm_buffer
+        self.Y_norm_coefficient = Y_norm_coefficient
+
+        self._Y_normalized = False
+        self._X_decomposed = False
 
     @property
     def first_metric_time(self) -> datetime:
@@ -101,33 +109,37 @@ class TimeSeriesMetricSet(MetricSet):
         """
         return datetime.utcfromtimestamp(self.X_orig[-1][0])
 
-class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
-    def __init__(self, X:np.ndarray, Y:np.ndarray, lookback:int = 20,
-        Y_norm_buffer:float = 1.0, Y_norm_coefficient:float = None):
-        self.X = np.copy(X)
-        self.Y = np.copy(Y)
-        self.X_orig = np.copy(X)
-        self.Y_orig = np.copy(Y)
-        self._set_scalers()
-
-        self.lookback = lookback
-        self.Y_norm_buffer = Y_norm_buffer
-        self.Y_norm_coefficient = Y_norm_coefficient
-
-        self._transformed_to_supervised = False
+    @property
+    def min_target_metric_value(self) -> float:
+        """
+        Returns the minimum, non-normalzied value in Y
+        """
+        return self.Y_orig.min()
 
     @property
-    def lookback(self):
-        return self._lookback
+    def max_target_metric_value(self) -> float:
+        """
+        Returns maximum, non-normalized value in Y
+        """
+        return self.Y_orig.max()
 
-    @lookback.setter
-    def lookback(self, val):
-        if not isinstance(val, int):
-            raise TypeError("lookback must be of type int")
-        if not val >= 1:
-            raise ValueError("lookback must be greater than or equal to one")
+    @property
+    def max_normalized_target_metric_value(self) -> float:
+        """
+        Returns maximum, nornamlized value in Y
+        """
+        if not self._Y_normalized:
+            raise TransformError("Y has not been normalized, so max_normalized_target_metric_value cannot be calculated")
+        return self.Y.max()
 
-        self._lookback = val
+    @property
+    def min_normalized_target_metric_value(self) -> float:
+        """
+        Returns minimum, normalized value in Y
+        """
+        if not self._Y_normalized:
+            raise TransformError("Y has not been normalized, so min_normalized_target_metric_value cannot be calculated")
+        return self.Y.min()
 
     @property
     def Y_norm_buffer(self):
@@ -189,6 +201,17 @@ class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
         self._min_scaler = MinMaxScaler(feature_range=(0,1))
         self._min_scaler.fit(np.array([[0.],[59.]]))
 
+    def normalize_Y(self):
+        """
+        Performs in place normalization of Y vector. If norm_coefficient is not
+        set, it is determined using (0, Ymax * buffer)
+        """
+        if self._Y_normalized:
+            return TransformError("Y has already been normalized")
+
+        np.multiply(self.Y, self.Y_norm_coefficient, out=self.Y)
+        self._Y_normalized = True
+
     def decompose_X(self):
         """
         Decomposes timestamps in X into features:
@@ -196,6 +219,9 @@ class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
             Hour of the Day
             Minute of the Hour
         """
+        if self._X_decomposed:
+            raise TransformError("X has already been decomposed")
+
         xlen = self.X.shape[0]
 
         day_set = np.zeros((xlen))
@@ -219,12 +245,33 @@ class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
 
         self.X = np.hstack((day_set, hour_set, min_set))
 
-    def normalize_Y(self):
-        """
-        Performs in place normalization of Y vector. If norm_coefficient is not
-        set, it is determined using (0, Ymax * buffer)
-        """
-        np.multiply(self.Y, self.Y_norm_coefficient, out=self.Y)
+        self._X_decomposed = True
+
+
+class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
+    def __init__(self, X:np.ndarray, Y:np.ndarray, Y_norm_buffer:float = 1.0,
+        Y_norm_coefficient:float = None, lookback:int = 20,):
+        super().__init__(
+                X=X,
+                Y=Y,
+                Y_norm_buffer=Y_norm_buffer,
+                Y_norm_coefficient = Y_norm_coefficient,
+            )
+        self.lookback = lookback
+        self._transformed_to_supervised = False
+
+    @property
+    def lookback(self):
+        return self._lookback
+
+    @lookback.setter
+    def lookback(self, val):
+        if not isinstance(val, int):
+            raise TypeError("lookback must be of type int")
+        if not val >= 1:
+            raise ValueError("lookback must be greater than or equal to one")
+
+        self._lookback = val
 
     def stack_transform(self):
         """
