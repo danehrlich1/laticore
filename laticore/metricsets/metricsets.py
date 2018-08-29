@@ -89,11 +89,11 @@ class TimeSeriesMetricSet(MetricSet):
         self.Y_orig = np.copy(Y)
 
         self._set_scalers()
-        self.Y_norm_buffer = Y_norm_buffer
+        self.Y_norm_buffer = float(Y_norm_buffer)
 
         if Y_norm_coefficient is None:
             Y_norm_coefficient = self._calc_Y_norm_coefficient()
-        self.Y_norm_coefficient = float(Y_norm_coefficient)
+        self.Y_norm_coefficient = Y_norm_coefficient
 
         self._Y_normalized = False
         self._X_decomposed = False
