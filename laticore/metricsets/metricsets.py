@@ -90,6 +90,9 @@ class TimeSeriesMetricSet(MetricSet):
 
         self._set_scalers()
         self.Y_norm_buffer = Y_norm_buffer
+
+        if Y_norm_coefficient is None:
+            Y_norm_coefficient = self._calc_Y_norm_coefficient()
         self.Y_norm_coefficient = Y_norm_coefficient
 
         self._Y_normalized = False
@@ -159,18 +162,12 @@ class TimeSeriesMetricSet(MetricSet):
 
     @Y_norm_coefficient.setter
     def Y_norm_coefficient(self, val):
-        if val is None:
-            scaler = MinMaxScaler(feature_range=(0.0, 1.0))
-            tofit = np.array([[0], [self.Y.max() * self.Y_norm_buffer]])
-            scaler.fit(tofit)
-            self._Y_norm_coefficient = scaler.scale_[0]
-        else:
-            if not isinstance(val, float):
-                return TypeError("Y_norm_coefficient must be of type float")
-            if not (0.0 <= val <= 1.0):
-                return ValueError("Y_norm_coefficient must be between 0.0 and 1.0 inclusively")
+        if not isinstance(val, float):
+            return TypeError("Y_norm_coefficient must be of type float")
+        if not (0.0 <= val <= 1.0):
+            return ValueError("Y_norm_coefficient must be between 0.0 and 1.0 inclusively")
 
-            self._Y_norm_coefficient = val
+        self._Y_norm_coefficient = val
 
     @property
     def day_scaler(self):
@@ -183,6 +180,16 @@ class TimeSeriesMetricSet(MetricSet):
     @property
     def min_scaler(self):
         return self._min_scaler
+
+
+    def _calc_Y_norm_coefficient(self) -> float:
+        """
+        Calculates Y_norm_coefficient
+        """
+        scaler = MinMaxScaler(feature_range=(0.0, 1.0))
+        tofit = np.array([[0], [self.Y.max() * self.Y_norm_buffer]])
+        scaler.fit(tofit)
+        return scaler.scale_[0]
 
     def _set_scalers(self):
         """
@@ -254,7 +261,7 @@ class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
         super().__init__(
                 X=X,
                 Y=Y,
-                Y_norm_buffer=Y_norm_buffer,
+                Y_norm_buffer      = Y_norm_buffer,
                 Y_norm_coefficient = Y_norm_coefficient,
             )
         self.lookback = lookback
