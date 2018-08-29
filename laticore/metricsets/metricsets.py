@@ -93,7 +93,7 @@ class TimeSeriesMetricSet(MetricSet):
 
         if Y_norm_coefficient is None:
             Y_norm_coefficient = self._calc_Y_norm_coefficient()
-        self.Y_norm_coefficient = Y_norm_coefficient
+        self.Y_norm_coefficient = float(Y_norm_coefficient)
 
         self._Y_normalized = False
         self._X_decomposed = False
@@ -151,9 +151,9 @@ class TimeSeriesMetricSet(MetricSet):
     @Y_norm_buffer.setter
     def Y_norm_buffer(self, val):
         if not isinstance(val, float):
-            return TypeError("Y_norm_buffer must be of type float")
+            raise TypeError("Y_norm_buffer must be of type float")
         if not val >= 1.0:
-            return ValueError("Y_norm_buffer must be greater than or equal to 1.0")
+            raise ValueError("Y_norm_buffer must be greater than or equal to 1.0")
         self._Y_norm_buffer = val
 
     @property
