@@ -45,7 +45,7 @@ class CloudWatch(Data):
         return date_ranges
 
     def fetch(self, start_time:datetime, end_time:datetime, namespace:str, metric_name:str,
-        dimensions:list, statistic:str,):
+        dimensions:list, statistic:str, trim_last:int=0):
         """
         fetches the target_metric from cloudwatch in batches of <= 1440 minutes.
         Sets target_metric instance attr.
@@ -58,6 +58,7 @@ class CloudWatch(Data):
             metric_name (str, required): Cloudwatch metric to request
             dimensions (list(dict), required): dimensions to get the right targets
             statistic (str, required): the statistic to request (i.e. Sum, Average, etc.)
+            trim_last (int, 0): whether to omit the last n data points from the result
 
         Returns:
             X (2d numpy array): 2d array of unix timestamps
@@ -67,8 +68,9 @@ class CloudWatch(Data):
         # AWS
         X = np.zeros((0,1))
         Y = np.zeros((0,1))
+        date_ranges = self._get_date_ranges(start_time, end_time)
 
-        for i, date in enumerate(self._get_date_ranges(start_time, end_time)):
+        for i, date in enumerate(date_ranges):
             response = self.cloudwatch.get_metric_statistics(
                 Namespace =  namespace,
                 MetricName = metric_name,
@@ -86,6 +88,18 @@ class CloudWatch(Data):
 
             # Sort dict by timestamp and put into ordered dict
             data = OrderedDict(sorted(data.items()))
+
+            # The last value returned from cloudwatch (i.e. the most recent value)
+            # can't be trusted. It's typtically incomplete due to eventual consistency issues
+            # and biases predictions downwards. So, we take a naive approach
+            # here and trim the very last value of the last date range returned.
+            if trim_last > 0 and i == len(date_ranges) - 1:
+                    counter = 0
+                    for idx in reversed(data):
+                        del data[idx]
+                        counter += 1
+                        if counter >= trim_last:
+                            break
 
             # pre-allocate arrays for the results we just fetched
             x = np.zeros((len(data), 1),)
