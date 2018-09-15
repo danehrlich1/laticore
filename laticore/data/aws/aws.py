@@ -144,7 +144,7 @@ class Autoscaling(Data):
                 desired_capacity
                 instance_count
         """
-        response = self.autoscaling.describe_autoscaling_groups(
+        response = self.autoscaling.describe_auto_scaling_groups(
             AutoScalingGroupNames = [
                 self.asg_name,
             ],
