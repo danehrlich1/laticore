@@ -150,7 +150,7 @@ class Autoscaling(Data):
             ],
         )
 
-        asg_config_raw = response["AutoScalingGroup"][0]
+        asg_config_raw = response["AutoScalingGroups"][0]
 
         self.config = {
                     "min_size": asg_config_raw["MinSize"],
