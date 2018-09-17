@@ -84,6 +84,7 @@ class TimeSeriesNNModel(Model):
         # because we're going to combine this with our "future" metricset and THEN
         # create the supervised set
         metricset.normalize_Y()
+        metricset.normalize_X_resolution()
         metricset.decompose_X()
         metricset.stack_transform()
 

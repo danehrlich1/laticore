@@ -82,10 +82,12 @@ class TimeSeriesMetricSet(MetricSet):
     of Unix timestamps
     """
     def __init__(self, X:np.ndarray, Y:np.ndarray, Y_norm_buffer:float = 1.0,
-        Y_norm_coefficient:float = None):
+        Y_norm_coefficient:float = None, time_resolution:str = "minute"):
+
         self.X = np.copy(X)
-        self.Y = np.copy(Y)
         self.X_orig = np.copy(X)
+
+        self.Y = np.copy(Y)
         self.Y_orig = np.copy(Y)
 
         self._set_scalers()
@@ -94,6 +96,8 @@ class TimeSeriesMetricSet(MetricSet):
         if Y_norm_coefficient is None:
             Y_norm_coefficient = self._calc_Y_norm_coefficient()
         self.Y_norm_coefficient = Y_norm_coefficient
+
+        self.time_resolution = time_resolution
 
         self._Y_normalized = False
         self._X_decomposed = False
@@ -170,6 +174,18 @@ class TimeSeriesMetricSet(MetricSet):
         self._Y_norm_coefficient = val
 
     @property
+    def time_resolution(self):
+        return self._time_resolution
+
+    @time_resolution.setter
+    def time_resolution(self, val):
+        if not isinstance(val, str):
+            raise TypeError("time_resolution must be of type str")
+        if val not in ["year", "month", "day", "hour", "minute", "second", "microsecond"]:
+            raise ValueError("%s is not a valid time resolution" % val)
+        self._time_resolution = val
+
+    @property
     def day_scaler(self):
         return self._day_scaler
 
@@ -180,7 +196,6 @@ class TimeSeriesMetricSet(MetricSet):
     @property
     def min_scaler(self):
         return self._min_scaler
-
 
     def _calc_Y_norm_coefficient(self) -> float:
         """
@@ -208,23 +223,16 @@ class TimeSeriesMetricSet(MetricSet):
         self._min_scaler = MinMaxScaler(feature_range=(0,1))
         self._min_scaler.fit(np.array([[0.],[59.]]))
 
-    def normalize_Y(self):
-        """
-        Performs in place normalization of Y vector. If norm_coefficient is not
-        set, it is determined using (0, Ymax * buffer)
-        """
-        if self._Y_normalized:
-            return TransformError("Y has already been normalized")
-
-        np.multiply(self.Y, self.Y_norm_coefficient, out=self.Y)
-        self._Y_normalized = True
-
     def decompose_X(self):
         """
         Decomposes timestamps in X into features:
             Day of the Week
             Hour of the Day
             Minute of the Hour
+
+        Args:
+            trim_seconds(bool): trims seconds off of unix timestamp so that they
+                they discrete minute resolution
         """
         if self._X_decomposed:
             raise TransformError("X has already been decomposed")
@@ -254,15 +262,57 @@ class TimeSeriesMetricSet(MetricSet):
 
         self._X_decomposed = True
 
+    def normalize_X_resolution(self):
+        """
+        Ensures standard time resolution across all X values
+        """
+        # microsecond is the smallest resolution, so nothing to do
+        if self.time_resolution == "microsecond":
+            return
+
+        # create list of resolutions, starting with year
+        resolutions = ["year", "month", "day", "hour", "minute", "second", "microsecond"]
+
+        # res_params is a map containing parameters for changing resolution with
+        # datetime.replace
+        res_params = {}
+        # populate res_params
+        for i, res in enumerate(resolutions):
+            if i+1 == len(resolutions):
+                break
+            # dict comprehension
+            res_params[res] = {subres:0 for subres in resolutions[i+1:]}
+
+        # iterate through X and perform normalization on X and X_orig
+        for j, ts in enumerate(self.X.ravel()):
+            dt = datetime.fromtimestamp(ts)
+            dt = dt.replace(**res_params[self.time_resolution])
+            new_ts = dt.timestamp()
+            self.X[j][0] = new_ts
+            self.X_orig[j][0] = new_ts
+
+    def normalize_Y(self):
+        """
+        Performs in place normalization of Y vector. If norm_coefficient is not
+        set, it is determined using (0, Ymax * buffer)
+        """
+        if self._Y_normalized:
+            return TransformError("Y has already been normalized")
+
+        np.multiply(self.Y, self.Y_norm_coefficient, out=self.Y)
+        self._Y_normalized = True
+
 
 class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
     def __init__(self, X:np.ndarray, Y:np.ndarray, Y_norm_buffer:float = 1.0,
-        Y_norm_coefficient:float = None, lookback:int = 20,):
+        Y_norm_coefficient:float = None, time_resolution:str = "minute",
+        lookback:int = 20,):
         super().__init__(
                 X=X,
                 Y=Y,
                 Y_norm_buffer      = Y_norm_buffer,
                 Y_norm_coefficient = Y_norm_coefficient,
+                time_resolution = time_resolution,
             )
         self.lookback = lookback
         self._transformed_to_supervised = False
@@ -315,6 +365,7 @@ class SupervisedTimeSeriesMetricSet(TimeSeriesMetricSet):
             raise TransformError("Metricset has already been transformed to a supervsied set.")
 
         self.normalize_Y()
+        self.normalize_X_resolution()
         self.decompose_X()
         self.stack_transform()
         self.supervised_transform()
