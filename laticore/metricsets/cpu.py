@@ -19,7 +19,7 @@ def create_cpu_units_metricset(utilization_ms:SupervisedTimeSeriesMetricSet,
         new_y[l][0] = utilization_ms.Y[l][0] * data.get(m, default_y)
 
     # create a new metricset cpu * instance_count
-    utilization_ms = SupervisedTimeSeriesMetricSet(
+    return SupervisedTimeSeriesMetricSet(
         X=utilization_ms.X,
         Y=new_y,
         Y_norm_buffer=float(utilization_ms.Y_norm_buffer),
