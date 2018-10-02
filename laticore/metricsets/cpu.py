@@ -3,7 +3,7 @@ from collections import OrderedDict
 from laticore.metricsets import SupervisedTimeSeriesMetricSet
 
 def create_cpu_units_metricset(utilization_ms:SupervisedTimeSeriesMetricSet,
-    instnace_count_ms:SupervisedTimeSeriesMetricSet) -> SupervisedTimeSeriesMetricSet:
+    instance_count_ms:SupervisedTimeSeriesMetricSet) -> SupervisedTimeSeriesMetricSet:
     # convert instance metricset data into ordered dict
     data = {}
     for i,j in enumerate(instance_count_ms.X.ravel()):
