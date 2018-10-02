@@ -4,6 +4,22 @@ from laticore.metricsets import SupervisedTimeSeriesMetricSet
 
 def create_cpu_units_metricset(utilization_ms:SupervisedTimeSeriesMetricSet,
     instance_count_ms:SupervisedTimeSeriesMetricSet) -> SupervisedTimeSeriesMetricSet:
+    """
+    Takes cpu utlization metricset and instance count metricset, and multiplies
+    them to create a new metricset representing total cpu "units" where
+    units = utlization * instance_count
+
+    NOTE:
+        Make sure you normalize time resolution before using this function,
+        or it probably won't work
+
+    Arguments:
+        utilization_ms: metricset representing time series of cpu utliziation values
+        instance_count_ms: metricset representing time series of instance counts
+
+    Returns:
+        metricset(SupervisedTimeSeriesMetricSet): representing cpu units
+    """
     # convert instance metricset data into ordered dict
     data = {}
     for i,j in enumerate(instance_count_ms.X.ravel()):
