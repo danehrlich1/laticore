@@ -20,6 +20,7 @@ Laticore contains useful packages for developing predictive autoscaling services
 
 ## Maintainers
 
-[Scott Crespo](scott@konture.io)
-
-[Jason van Brackel](jvb@rancher.com)
+| Name | Contact |
+| --- | --- |
+| Scott Crespo | scott@konture.io |
+| Jason van Brackel | jvb@rancher.io |
